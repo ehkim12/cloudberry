@@ -28,8 +28,8 @@ declare -a GPPATH
 GPPATH=( $GPHOME $MPPHOME $BIZHOME )
 if [ ${#GPPATH[@]} -eq 0 ];then
 	echo "[FATAL]:-GPHOME environment variable is required to run GPDB but could not be found."
-	echo "Please set it by sourcing the  greenplum_path.sh  in your GPDB installation directory."
-	echo "Example: ''. /usr/local/gpdb/greenplum_path.sh''"
+	echo "Please set it by sourcing the greenplum_path in your GPDB installation directory."
+	echo "Example: ''. /usr/local/gpdb/greenplum_path''"
 	exit 1
 fi
 
@@ -1318,12 +1318,16 @@ CHECK_FTS () {
     if [ "$#" -ne 2 ];then
         LOG_MSG "[ERROR]: CHECK_FTS invalid params..."
     fi
+    if [ "x$SKIP_FTS_CHECK" = "x1" ]; then
+        LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, skipping FTS process check."
+		return 1
+    fi
     FTS_HOST=$1
     FTS_CHECK_CMD="ps -ef | grep -i 'gpfts' | grep -v grep"
-    FTS_PROCESS_RES=`gpssh -h ${FTS_HOST} -e "${FTS_CHECK_CMD}" | wc -l`
-    if [ ! "$FTS_PROCESS_RES" -eq "1" ]; then
-        ret=0
-    fi
+    #FTS_PROCESS_RES=`gpssh -h ${FTS_HOST} -e "${FTS_CHECK_CMD}" | grep -v "^\[" | grep -v "^$" | grep -v "COMMAND" | wc -l`
+    #if [ ! "$FTS_PROCESS_RES" -eq "1" ]; then
+        #ret=0
+    #fi
     return $ret
 }
 

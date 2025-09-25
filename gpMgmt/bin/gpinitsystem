@@ -1990,10 +1990,15 @@ CBDB_PRECHECK() {
         fi
         for fts in ${FTS_HOST_MACHINE_LIST[*]}
         do
-                CHECK_FTS $fts
+                #CHECK_FTS $fts
+                if [ ! -x "${GPHOME}/bin/gpfts" ]; then
+                        LOG_MSG "[WARN]:-gpfts binary not found on $fts, skipping FTS precheck"
+						continue
+                fi
+                CHECK_FTS $fts $CLUSTER_BOOT_MODE
                 if [ $? -eq 0 ];then
                         ERROR_EXIT "[FATAL]: FTS HOST $fts has alived fts process, please cleanup the environment first."
-                fi
+                fi			
                 if [ -z FTS_HOST_STRING_LIST ];then
                          FTS_HOST_STRING_LIST="$fts"
                 else

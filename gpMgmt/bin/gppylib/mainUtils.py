@@ -530,12 +530,20 @@ def start_fts(fts, isdemo):
 def kill_fts(fts):
     kill_cmd = "pkill fts"
     process_cmd = f"gpssh -h {fts} -e \"{kill_cmd}\"" 
-    subprocess.call(process_cmd, shell=True)
+    try:
+        subprocess.check_output(process_cmd, shell=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        print(f"[WARNING] Timeout killing FTS process on {fts}")
+        pass
 
 def kill_etcd(etcd):
     kill_cmd = "pkill etcd"
     process_cmd = f"gpssh -h {etcd} -e \"{kill_cmd}\"" 
-    subprocess.call(process_cmd, shell=True)
+    try:
+        subprocess.check_output(process_cmd, shell=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        print(f"[WARNING] Timeout killing ETCD process on {etcd}")
+        pass
 
 def resolve_hostname(hostname):
     cmd = "getent hosts %s | awk '{ print $1 }'" % hostname
