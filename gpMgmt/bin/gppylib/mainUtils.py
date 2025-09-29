@@ -494,16 +494,29 @@ def check_fts(fts):
     return fts_process_res == 2
 
 def check_etcd(etcd):
-    etcd_check_cmd = "ps -ef | grep -i 'etcd' | grep 'initial-cluster'| grep -v 'grep'"
-    process_cmd = "gpssh -h %s -e \"%s\"| wc -l" % (etcd, etcd_check_cmd)
-    etcd_process_res = int(subprocess.check_output(process_cmd, shell=True).decode().strip())
-    if etcd_process_res == 2:
-        return True
-    # for demo cluster
-    etcd_check_cmd = "ps -ef | awk '{print \$2, \$8}' | grep etcd | grep -v grep"
-    process_cmd = "gpssh -h %s -e \"%s\"| wc -l" % (etcd, etcd_check_cmd)
-    etcd_process_res = int(subprocess.check_output(process_cmd, shell=True).decode().strip())
-    return etcd_process_res == 2
+    try:
+        import urllib.request
+        import json
+        url = f"http://{etcd}:2379/health"
+        response = urllib.request.urlopen(url, timeout=5)
+        if response.status == 200:
+            data = json.loads(response.read().decode())
+            return data.get('health') == 'true'
+    except:
+        pass
+    try:
+        etcd_check_cmd = "ps -ef | grep -i 'etcd' | grep 'initial-cluster'| grep -v 'grep'"
+        process_cmd = "gpssh -h %s -e \"%s\"| wc -l" % (etcd, etcd_check_cmd)
+        etcd_process_res = int(subprocess.check_output(process_cmd, shell=True).decode().strip())
+        if etcd_process_res == 2:
+            return True
+        # for demo cluster
+        etcd_check_cmd = "ps -ef | awk '{print \$2, \$8}' | grep etcd | grep -v grep"
+        process_cmd = "gpssh -h %s -e \"%s\"| wc -l" % (etcd, etcd_check_cmd)
+        etcd_process_res = int(subprocess.check_output(process_cmd, shell=True).decode().strip())
+        return etcd_process_res == 2
+    except:
+        return False
 
 def read_hosts(filename):
     with open(filename, "r") as f:
@@ -524,8 +537,15 @@ def start_fts(fts, isdemo):
         fts_cmd=f"mkdir -p {_FTS_LOG_DIR};nohup {gphome}/bin/gpfts -F {_ETCD_CONFIG_TMP_FILE} -d {_FTS_LOG_DIR} -D -a -C >/dev/null 2>&1 &"
     else:
         fts_cmd=f"mkdir -p {_FTS_LOG_DIR};nohup {gphome}/bin/gpfts -F {_ETCD_CONFIG_TMP_FILE} -d {_FTS_LOG_DIR} >/dev/null 2>&1 &"
-    subprocess.check_output(f"gpssh -h {fts} -e \"{fts_cmd}\"", shell=True)
-        
+    # Use gpssh without unsupported -o options
+    gpssh_cmd = f"gpssh -h {fts} -e \"{fts_cmd}\""
+    try:
+        subprocess.check_output(gpssh_cmd, shell=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        print(f"[WARNING] FTS start command timed out on {fts}, but may have started successfully")
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] Failed to start FTS on {fts}: {e}")
+        raise
 
 def kill_fts(fts):
     kill_cmd = "pkill fts"

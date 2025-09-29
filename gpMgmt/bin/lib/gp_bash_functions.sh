@@ -1309,7 +1309,11 @@ SETUP_FTS() {
         FTS_CMD="mkdir -p ${FTS_LOG_DIR}/log/fts;nohup ${GPHOME}/bin/gpfts -F ${ETCD_CONFIG_TMP_FILE} -d ${FTS_LOG_DIR}/log/fts >/dev/null 2>&1 &"
         gpssh -h ${FTS_HOST} -e "${FTS_CMD}"
     fi
-    OUTPUT_HOST_TO_FILE $FTS_HOST_FILE $ETCD_HOST
+    if [ "x$SKIP_FTS_CHECK" != "x1" ]; then
+        OUTPUT_HOST_TO_FILE $FTS_HOST_FILE $ETCD_HOST
+    else
+        LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, skipping FTS config file creation for $FTS_HOST"
+    fi
     LOG_MSG "[INFO]: FTS already installed on host $FTS_HOST"
 }
 
@@ -1317,12 +1321,14 @@ CHECK_FTS () {
     ret=1
     if [ "$#" -ne 2 ];then
         LOG_MSG "[ERROR]: CHECK_FTS invalid params..."
-    fi
-    if [ "x$SKIP_FTS_CHECK" = "x1" ]; then
-        LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, skipping FTS process check."
-		return 1
+        return $ret
     fi
     FTS_HOST=$1
+    FTS_MODE=$2
+    if [ "x$SKIP_FTS_CHECK" = "x1" ]; then
+        LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, skipping FTS process check for $FTS_HOST"
+        return 0
+    fi
     FTS_CHECK_CMD="ps -ef | grep -i 'gpfts' | grep -v grep"
     #FTS_PROCESS_RES=`gpssh -h ${FTS_HOST} -e "${FTS_CHECK_CMD}" | grep -v "^\[" | grep -v "^$" | grep -v "COMMAND" | wc -l`
     #if [ ! "$FTS_PROCESS_RES" -eq "1" ]; then

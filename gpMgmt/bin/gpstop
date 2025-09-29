@@ -260,6 +260,9 @@ class GpStop:
         return 0
     
     def _clean_fts(self):
+        if os.environ.get("SKIP_FTS_CHECK") == "1":
+            logger.info("SKIP_FTS_CHECK is set, skipping FTS cleanup in gpstop")
+            return
         if not os.path.exists(self.fts_hosts):
             raise gp.GpError("FTS host file %s does not exist." % self.fts_hosts)
         fts_host_machine_list = read_hosts(self.fts_hosts)

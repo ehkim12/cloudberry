@@ -1223,6 +1223,15 @@ SET_LOCALE_VARS_BASED_ON_COORDINATOR() {
 
 CREATE_QD_DB () {
 		LOG_MSG "[INFO]:-Start Function $FUNCNAME"
+		# Clean up any config files that may interfere with initdb
+		if [ "x$SKIP_FTS_CHECK" = "x1" ]; then
+			local config_dir=${COORDINATOR_DIRECTORY}/${SEG_PREFIX}-1/config
+			if [ -d "$config_dir" ]; then
+				LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, cleaning up config directory before initdb: $config_dir"
+				rm -rf "$config_dir"
+			fi
+		fi
+
 		LOG_MSG "[INFO]:-Building the Coordinator instance database, please wait..." 1
 		SET_VAR $QD_PRIMARY_ARRAY
 		LOG_MSG "[INFO]:-Initializing Coordinator Postgres instance $GP_DIR"
@@ -1995,7 +2004,14 @@ CBDB_PRECHECK() {
                         LOG_MSG "[WARN]:-gpfts binary not found on $fts, skipping FTS precheck"
 						continue
                 fi
-                CHECK_FTS $fts $CLUSTER_BOOT_MODE
+                if [ "x$SKIP_FTS_CHECK" != "x1" ]; then
+                        CHECK_FTS $fts $CLUSTER_BOOT_MODE
+                        if [ $? -eq 0 ];then
+                            ERROR_EXIT "[FATAL]: FTS HOST $fts has alived fts process, please cleanup the environment first."
+                        fi
+                else
+                        LOG_MSG "[WARN]: SKIP_FTS_CHECK is set, skipping FTS pre-check for $fts"
+                fi
                 if [ $? -eq 0 ];then
                         ERROR_EXIT "[FATAL]: FTS HOST $fts has alived fts process, please cleanup the environment first."
                 fi			
@@ -2068,9 +2084,9 @@ CREATE_FTS() {
         sleep 5
         for fts in ${FTS_HOST_MACHINE_LIST[*]}
         do
-                CHECK_FTS $fts
+                CHECK_FTS $fts $CLUSTER_BOOT_MODE
                 if [ $? -eq 1 ];then
-                        ERROR_EXIT "[FATAL]: FTS HOST $etcd failed to start!"
+                        ERROR_EXIT "[FATAL]: FTS HOST $fts failed to start!"
                 fi
         done
 
@@ -2214,6 +2230,11 @@ if [ $USE_EXTERNAL_FTS -ne 0 ];then
 	LOG_MSG "[INFO]:-Start to install ETCD cluster" 1
 	CREATE_ETCD
 	LOG_MSG "[INFO]:-ETCD cluster successfully created" 1
+	LOG_MSG "[INFO]:-------------------------------------------------------" 1
+	LOG_MSG "[INFO]:-------------------------------------------------------" 1
+	LOG_MSG "[INFO]:-Start to install FTS cluster" 1
+	CREATE_FTS
+	LOG_MSG "[INFO]:-FTS cluster successfully created" 1
 	LOG_MSG "[INFO]:-------------------------------------------------------" 1
 fi
 
