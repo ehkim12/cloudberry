@@ -741,6 +741,22 @@ gp_activate_standby(void)
 	int16		standby_dbid = GpIdentity.dbid;
 	int16		master_dbid;
 
+	/*
+	 * BUGFIX: Early check if we are already promoted.
+	 * This handles the case where FTS has already updated etcd/catalog
+	 * but gp_activate_standby is being called after promotion completes.
+	 * 
+	 * Without this check, we would fail with "can only be run on the
+	 * standby master" because dbid_is_master_standby() returns false
+	 * after FTS updates roles in etcd.
+	 */
+	if (am_startup && !RecoveryInProgress())
+	{
+		elog(LOG, "gp_activate_standby: already promoted to primary, skipping activation");
+		return true;
+	}
+
+
 	master_dbid = contentid_get_dbid(MASTER_CONTENT_ID, GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY, true);
 
 	/*
